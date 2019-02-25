@@ -1,0 +1,103 @@
+diff --git a/CRM/Calendar/Page/AJAX.php b/CRM/Calendar/Page/AJAX.php
+index a27b836..7fb55dd 100644
+--- a/CRM/Calendar/Page/AJAX.php
++++ b/CRM/Calendar/Page/AJAX.php
+@@ -21,6 +21,7 @@ class CRM_Calendar_Page_AJAX
+     }
+     
+     $hidePastEvents = CRM_Calendar_Settings::getValue('hidepastevents');
++    $onlyPlanned = CRM_Calendar_Settings::getValue('onlyplanned');
+ 
+     $events = array();
+     $eventCalendarParams = array('title' => 'title', 'start' => 'start', 'url' => 'url', 'end' => 'end');
+@@ -153,7 +154,12 @@ class CRM_Calendar_Page_AJAX
+     if ($hidePastEvents == "1") {
+        $query .= ' AND civicrm_activity.activity_date_time > NOW()';
+     }
+-
++	
++    /** Only planned Events when onlyPlanned setting is enabled **/
++    if ($onlyPlanned == "1") {
++       $query .= ' AND civicrm_activity.status_id = 1';
++    }
++	
+     $dao = CRM_Core_DAO::executeQuery($query);
+ 
+     while ($dao->fetch()) {
+diff --git a/CRM/Calendar/Page/Calendar.php b/CRM/Calendar/Page/Calendar.php
+index ae5e098..d6d44a6 100644
+--- a/CRM/Calendar/Page/Calendar.php
++++ b/CRM/Calendar/Page/Calendar.php
+@@ -18,12 +18,13 @@ class CRM_Calendar_Page_Calendar extends CRM_Core_Page
+     CRM_Utils_System::setTitle(ts('Calendar'));
+     $this->_contactId = CRM_Utils_Request::retrieve('cid', 'Positive', $this, true);
+ 
+-    $settings = CRM_Calendar_Settings::get(array ('scrolltime', 'defaultview', 'dayofmonthformat', 'timeformat', 'hidepastevents', 'locale', 'height'));
++    $settings = CRM_Calendar_Settings::get(array ('scrolltime', 'defaultview', 'dayofmonthformat', 'timeformat', 'hidepastevents', 'onlyplanned', 'locale', 'height'));
+     $settings['scrollTime'] = $settings['scrolltime'];
+     $settings['defaultView'] = $settings['defaultview'];
+     $settings['dayOfMonthFormat'] = $settings['dayofmonthformat'];
+     $settings['timeFormat'] = $settings['timeformat'];
+     $settings['hidePastEvents'] = $settings['hidepastevents'];
++    $settings['onlyplanned'] = $settings['onlyplanned'];
+     $settings['locale'] = $settings['locale'];
+     $settings['height'] = $settings['height'];
+ 
+diff --git a/CRM/Dashlet/Page/Calendar.php b/CRM/Dashlet/Page/Calendar.php
+index 9521d06..8f97dce 100644
+--- a/CRM/Dashlet/Page/Calendar.php
++++ b/CRM/Dashlet/Page/Calendar.php
+@@ -22,6 +22,7 @@ class CRM_Dashlet_Page_Calendar extends CRM_Core_Page {
+     $settings['dayOfMonthFormat'] = $settings['dayofmonthformat'];
+     $settings['timeFormat'] = $settings['timeformat'];
+     $settings['hidePastEvents'] = $settings['hidepastevents'];
++    $settings['onlyplanned'] = $settings['onlyplanned'];
+     $settings['locale'] = $settings['locale'];
+     $settings['height'] = $settings['height'];
+     $this->assign('settings', $settings);
+diff --git a/calendar.php b/calendar.php
+index 770ac96..9646498 100644
+--- a/calendar.php
++++ b/calendar.php
+@@ -184,7 +184,7 @@ function calendar_civicrm_dashboard($contactID, &$contentPlacement)
+     
+     $isOnDashboard = CRM_Core_DAO::singleValueQuery("
+         SELECT count(*) FROM civicrm_dashboard
+-        WHERE name='calendar' and is_active=1 and domain_id in (select id from civicrm_domain where name = 'Default Domain Name')
++        WHERE name='calendar' and is_active=1 and domain_id in (select MIN(id) from civicrm_domain)
+       ");
+     if($isOnDashboard){
+         _calendar_civix_addJSCss();
+diff --git a/settings/civicalendar.setting.php b/settings/civicalendar.setting.php
+index aa64335..2c84e8b 100644
+--- a/settings/civicalendar.setting.php
++++ b/settings/civicalendar.setting.php
+@@ -6,6 +6,7 @@ return array(
+   'dayOfMonthFormat' => array('default' => 'ddd DD'),
+   'timeFormat' => array('default' => 'h(:mm)t'),
+   'hidePastEvents' => array('default' => '0'),
++  'onlyplanned' => array('default' => '0'),
+   'locale' => array('default' => CRM_Core_I18n::getLocale()),  
+   'height' => array('default' => '500'),
+ 
+@@ -202,6 +203,20 @@ return array(
+     'html_type' => 'Checkbox',
+   ),
+ 
++  'civicalendar_onlyplanned' => array(
++    'group_name' => 'CiviCalendar Settings',
++    'group' => 'civicalendar',
++    'name' => 'civicalendar_onlyplanned',
++    'type' => 'String',
++    'type' => 'String',
++    'add' => '4.7',
++    'is_domain' => 1,
++    'is_contact' => 0,
++    'default' => '0',
++    'description' => ts('Only show planned events'),
++    'html_type' => 'Checkbox',
++  ),
++
+   'civicalendar_height' => array(
+     'group_name' => 'CiviCalendar Settings',
+     'group' => 'civicalendar',
